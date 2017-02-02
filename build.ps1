@@ -1,3 +1,17 @@
+function ExecuteRestore
+{
+    if(Test-Path 'application/.nuget/Nuget.config') 
+    {
+        Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
+        dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Minimal --disable-parallel --no-cache
+    }
+    else
+    {
+        Write-Host "Running dotnet restore" -ForegroundColor Green
+        dotnet restore --verbosity Minimal --disable-parallel --no-cache
+    }
+}
+
 function ExecuteBuilds
 {
     Param($build)
@@ -116,8 +130,7 @@ function ExecuteTests
 }
            
 
-Write-Host "Running dotnet restore" -ForegroundColor Green
-dotnet restore application\  --no-cache --disable-parallel
+ExecuteResore
 
 $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
 
