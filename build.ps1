@@ -84,6 +84,26 @@ function ExecuteDatabaseBuilds
     }
 }
 
+function PackageDatabaseBuilds
+{
+    Param($build)
+    if ($build.databases)
+    {
+        $build.databases | ForEach {
+        Write-Host "DacPack'ing $($_.name))" -ForegroundColor Green
+	    $artdir = "$(Build.ArtifactStagingDirectory)"	
+            $sourcedir = $artDir + "\" + $_.name
+            $dacpacs = Get-ChildItem -Recurse -Include *.dacpac $sourcedir
+            if (($dacpacs | Measure-Object).Count == 0){
+                Write-Host "No dac-pack created." -ForegroundColor Red
+                exit 1
+            }     
+        
+            $dacpacs | Copy-Item -Destination $artdir -verbose
+        }
+    }
+}
+
 function PackageBuilds
 {
     Param($build)
@@ -138,5 +158,6 @@ ExecuteBuilds $build
 ExecutePublishes $build
 ExecuteDatabaseBuilds $build
 PackageBuilds $build
+PackageDatabaseBuilds $build
 
 ExecuteTests
