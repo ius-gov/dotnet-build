@@ -91,6 +91,29 @@ function PackageBuilds
         Write-Host "No package targets" -ForegroundColor DarkYellow
     }
 }
+
+function ExecuteTests
+{
+    $exitCode = 0;
+
+    if(Test-Path -Path 'application/test/') {
+      Get-ChildItem application/test/ -Recurse -include project.json | ForEach {
+        $parent = Split-Path (Split-Path -Path $_.Fullname -Parent) -Leaf;
+        $testFile = "TEST-RESULTS-$parent.xml";
+        dotnet test $_.Fullname -xml $testFile;
+        $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
+      }
+    }
+    else
+    {
+      Write-Warning "No test file found.  Skipping tests."
+    }
+    
+    if ($exitCode -ne 0)
+    {
+        exit $exitCode
+    }
+}
            
 
 Write-Host "Running dotnet restore" -ForegroundColor Green
@@ -102,3 +125,5 @@ ExecuteBuilds $build
 ExecutePublishes $build
 ExecuteDatabaseBuilds $build
 PackageBuilds $build
+
+ExecuteTests
