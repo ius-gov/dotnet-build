@@ -60,7 +60,7 @@ function ExecutePublishes
     {
         $build.deploys | ForEach {
           Write-Host "Executing dotnet build/publish for $($_.path)" -ForegroundColor Green
-           $output = "$(Build.ArtifactStagingDirectory)" + "\" + $_.name
+           $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
             dotnet build $_.path --configuration Release
             dotnet publish "$($_.path)\project.json" --output $output --configuration Release
           if ($LASTEXITCODE -eq 1)
@@ -82,7 +82,7 @@ function ExecuteDatabaseBuilds
     if ($build.databases)
     {
         $build.databases| ForEach {
-          $output = "$(Build.ArtifactStagingDirectory)" + "\" + $_.name
+          $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
           
           
            Write-Host "MSBuild Database to $output" -ForegroundColor Green
@@ -107,7 +107,7 @@ function PackageDatabaseBuilds
     {
         $build.databases | ForEach {
         Write-Host "DacPack'ing $($_.name))" -ForegroundColor Green
-	    $artdir = "$(Build.ArtifactStagingDirectory)"	
+	    $artdir = $env:BUILD_ARTIFACTSTAGINGDIRECTORY	
             $sourcedir = $artDir + "\" + $_.name
             $dacpacs = Get-ChildItem -Recurse -Include *.dacpac $sourcedir
             if (($dacpacs | Measure-Object).Count == 0){
