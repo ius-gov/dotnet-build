@@ -1,3 +1,19 @@
+function BumpVersions
+{
+    Param($build)
+
+    $configFiles = Get-ChildItem . project.json -rec
+    $versionNumber = "$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
+    Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
+    foreach ($file in $configFiles)
+    {
+        (Get-Content $file.PSPath) |
+        Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
+        Set-Content $file.PSPath
+    }
+}
+
+
 function ExecuteRestore
 {
     if(Test-Path 'application/.nuget/Nuget.config') 
@@ -148,16 +164,25 @@ function ExecuteTests
         exit $exitCode
     }
 }
-           
 
-ExecuteRestore
 
 $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
+           
+#Bump the versions first
+BumpVersions $build
 
+#Restore the packages
+ExecuteRestore
+
+#Execute the builds
 ExecuteBuilds $build
 ExecutePublishes $build
 ExecuteDatabaseBuilds $build
+
+
+# Test the builds
+ExecuteTests
+
+#Package the builds
 PackageBuilds $build
 PackageDatabaseBuilds $build
-
-ExecuteTests
