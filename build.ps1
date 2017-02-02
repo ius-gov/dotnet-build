@@ -130,7 +130,7 @@ function ExecuteTests
 }
            
 
-ExecuteResore
+ExecuteRestore
 
 $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
 
