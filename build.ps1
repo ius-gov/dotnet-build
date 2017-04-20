@@ -110,7 +110,7 @@ function PackageDatabaseBuilds
 	    $artdir = $env:BUILD_ARTIFACTSTAGINGDIRECTORY	
             $sourcedir = $artDir + "\" + $_.name
             $dacpacs = Get-ChildItem -Recurse -Include *.dacpac $sourcedir
-            if (($dacpacs | Measure-Object).Count == 0){
+            if (($dacpacs | Measure-Object).Count -eq 0){
                 Write-Host "No dac-pack created." -ForegroundColor Red
                 exit 1
             }     
