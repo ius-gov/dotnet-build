@@ -6,7 +6,7 @@ function BumpVersions
 
     $configFiles = Get-ChildItem . project.json -rec
     $configFiles += Get-ChildItem . *.csproj -rec
-    $versionNumber = "$($build.versions.major).$($build.versions.minor).$env:BUILD_BUILDID"
+    $versionNumber = "$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
     foreach ($file in $configFiles)
     {
