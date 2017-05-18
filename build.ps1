@@ -1,8 +1,6 @@
 function BumpVersions
 {
     Param($build)
-    $buildjson = $build | ConvertTo-Json
-    Write-Host "Raw Build.json $buildjson" -ForegroundColor Green
 
     $configFiles = Get-ChildItem . project.json -rec
     $configFiles += Get-ChildItem . *.csproj -rec
