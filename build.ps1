@@ -3,6 +3,7 @@ function BumpVersions
     Param($build)
 
     $configFiles = Get-ChildItem . project.json -rec
+    $configFiles += Get-ChildItem . *.csproj -rec
     $versionNumber = "$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
     foreach ($file in $configFiles)
@@ -19,12 +20,12 @@ function ExecuteRestore
     if(Test-Path 'application/.nuget/Nuget.config') 
     {
         Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
-        dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Minimal --disable-parallel --no-cache
+        dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Minimal --disable-parallel --no-cache application/
     }
     else
     {
         Write-Host "Running dotnet restore" -ForegroundColor Green
-        dotnet restore --verbosity Minimal --disable-parallel --no-cache
+        dotnet restore --verbosity Minimal --disable-parallel --no-cache application/
     }
 }
 
@@ -36,7 +37,7 @@ function ExecuteBuilds
     {
         $build.builds | ForEach {
           Write-Host "Executing dotnet build for $($_.path)" -ForegroundColor Green
-          dotnet build "$($_.path)\project.json"
+          dotnet build "$($_.path)\"
           if ($LASTEXITCODE -eq 1)
           {
               Write-Host "Error build project $_" -ForegroundColor Red
@@ -46,10 +47,33 @@ function ExecuteBuilds
     }
     else
     {
-      Write-Host "No build targets" -ForegroundColor DarkYellow
+      Write-Host "No build targets trying application/*.sln" -ForegroundColor DarkYellow
+      dotnet build application/
     }
 
 }
+
+function Get-ExtensionCount {
+    param(
+        $Root = ".",
+        $FileType = ""
+    )
+
+    $files = Get-ChildItem $Root -Filter *$FileType | ? { !$_.PSIsContainer }
+    return $($files.Count)
+}
+
+function Get-HasFileWithExtension {
+    param(
+        $Root = ".",
+        $FileType = ""
+    )
+
+    $fileCount = Get-ExtensionCount $Root $FileType 
+    Write-Host "Found $fileCount with extension $FileType" -ForegroundColor DarkYellow
+    return $fileCount -gt 0
+}
+
 
 function ExecutePublishes
 {
@@ -61,9 +85,26 @@ function ExecutePublishes
         $build.deploys | ForEach {
           Write-Host "Executing dotnet build/publish for $($_.path)" -ForegroundColor Green
            $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-            dotnet build $_.path --configuration Release
-            dotnet publish "$($_.path)\project.json" --output $output --configuration Release
-          if ($LASTEXITCODE -eq 1)
+            if ($_.path.EndsWith("csproj") -Or (Get-HasFileWithExtension $_.path csproj ))
+            {
+                Write-Host "trying csproj" -ForegroundColor Green
+                dotnet build $_.path --configuration Release
+                dotnet publish $_.path --output $output --configuration Release 
+            }
+            elseif ($_.path.EndsWith("json") -Or (Get-HasFileWithExtension $_.path json ))
+            {
+                Write-Host "trying project.json" -ForegroundColor Green
+                dotnet build "$($_.path)\project.json" --configuration Release
+                dotnet publish "$($_.path)\project.json" --output $output --configuration Release
+            }
+            else 
+            {
+                Write-Host "no csproj or json? trying dotnet on folder" -ForegroundColor Green
+                dotnet build "$($_.path)\" --configuration Release
+                dotnet publish "$($_.path)\" --output $output --configuration Release
+                
+            }
+            if ($LASTEXITCODE -eq 1)
           {
               Write-Host "Error build project $_" -ForegroundColor Red
               exit 1
@@ -81,12 +122,23 @@ function ExecuteDatabaseBuilds
 {
     if ($build.databases)
     {
+        $msbuild15 = "C:\Program Files (x86)\MSBuild\15.0\bin\msbuild.exe" 
+        $msbuild14 = "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe" 
+        
+        if(Test-Path $msbuild15)
+        {
+                $msbuildPath = $msbuild15
+        }
+        else
+        {
+                $msbuildPath = $msbuild14
+        }
+
+
         $build.databases| ForEach {
           $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-          
-          
            Write-Host "MSBuild Database to $output" -ForegroundColor Green
-           & "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe" $_.path /p:OutputPath=$output
+           & $msbuildPath $_.path /p:OutputPath=$output
           if ($LASTEXITCODE -eq 1)
           {
               Write-Host "Error build database $_" -ForegroundColor Red
@@ -146,13 +198,19 @@ function ExecuteTests
 {
     $exitCode = 0;
 
-    if(Test-Path -Path 'application/test/') {
-      Get-ChildItem application/test/ -Recurse -include project.json | ForEach {
-        $parent = Split-Path (Split-Path -Path $_.Fullname -Parent) -Leaf;
+    if (Test-Path -Path 'application/test/') {
+      $testProjects = Get-ChildItem application/test/ -Recurse -include project.json 
+      $testProjects += Get-ChildItem application/test/ -Recurse -include *.csproj 
+      
+      Write-Host $testProjects -ForegroundColor DarkYellow
+      foreach ($file in $testProjects)
+      {
+        $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
         $testFile = "TEST-RESULTS-$parent.xml";
-        dotnet test $_.Fullname -xml $testFile;
+        dotnet test $file -xml $testFile;
         $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
       }
+
     }
     else
     {
@@ -165,24 +223,33 @@ function ExecuteTests
     }
 }
 
+function StandardBuild
+{
 
-$build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
-           
-#Bump the versions first
-BumpVersions $build
+        $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
+                   
+        #Bump the versions first
+        BumpVersions $build
+        Write-Warning "Finish Bump"
 
-#Restore the packages
-ExecuteRestore
+        #Restore the packages
+        ExecuteRestore
+        Write-Warning "Finish Restore"
 
-#Execute the builds
-ExecuteBuilds $build
-ExecutePublishes $build
-ExecuteDatabaseBuilds $build
+        #Execute the builds
+        ExecuteBuilds $build
+        Write-Warning "Finish build"
+        ExecutePublishes $build
+        Write-Warning "Finish publishes"
+        ExecuteDatabaseBuilds $build
+        Write-Warning "Finish databases"
 
 
-# Test the builds
-ExecuteTests
+        # Test the builds
+        ExecuteTests
+        Write-Warning "Finish tests"
 
-#Package the builds
-PackageBuilds $build
-PackageDatabaseBuilds $build
+        #Package the builds
+        PackageBuilds $build
+        PackageDatabaseBuilds $build
+}
