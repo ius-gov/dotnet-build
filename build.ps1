@@ -3,7 +3,7 @@
 function BumpVersions
 {
     param(
-        [Parameter(Mandatory=$true)]$build
+        [Parameter(Mandatory=$true)]$build,
         [Parameter(Mandatory=$true)][string]$clientStateFIPS
     )
 
