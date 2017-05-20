@@ -1,10 +1,17 @@
+param(
+    [Parameter(Mandatory=$true)][string]$clientStateFIPS
+)
+
+
 function BumpVersions
 {
     Param($build)
 
     $configFiles = Get-ChildItem . project.json -rec
     $configFiles += Get-ChildItem . *.csproj -rec
-    $versionNumber = "$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
+
+    $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
+
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
     foreach ($file in $configFiles)
     {
