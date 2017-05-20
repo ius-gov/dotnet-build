@@ -239,7 +239,7 @@ function StandardBuild
         $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
                    
         #Bump the versions first
-        BumpVersions $build
+        BumpVersions $build $clientStateFIPS
         Write-Warning "Finish Bump"
 
         #Restore the packages
