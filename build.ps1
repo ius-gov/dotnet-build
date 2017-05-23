@@ -199,14 +199,15 @@ function ExecuteTests
       Write-Host $testProjects -ForegroundColor DarkYellow
       foreach ($file in $testProjects)
       {
+        $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
+        $testFile = "TEST-RESULTS-$parent.xml";
+
         if ($file.FullName.EndsWith("csproj"))
         {
-                dotnet test $file
+                dotnet xunit $file -xml $testFile;
         }
         else
         {
-                $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
-                $testFile = "TEST-RESULTS-$parent.xml";
                 dotnet test $file -xml $testFile;
         }
         $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
