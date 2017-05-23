@@ -129,23 +129,10 @@ function ExecuteDatabaseBuilds
 {
     if ($build.databases)
     {
-        $msbuild15 = "C:\Program Files (x86)\MSBuild\15.0\bin\msbuild.exe" 
-        $msbuild14 = "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe" 
-        
-        if(Test-Path $msbuild15)
-        {
-                $msbuildPath = $msbuild15
-        }
-        else
-        {
-                $msbuildPath = $msbuild14
-        }
-
-
         $build.databases| ForEach {
           $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
            Write-Host "MSBuild Database to $output" -ForegroundColor Green
-           & $msbuildPath $_.path /p:OutputPath=$output
+           & "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe" $_.path /p:OutputPath=$output
           if ($LASTEXITCODE -eq 1)
           {
               Write-Host "Error build database $_" -ForegroundColor Red
@@ -212,9 +199,16 @@ function ExecuteTests
       Write-Host $testProjects -ForegroundColor DarkYellow
       foreach ($file in $testProjects)
       {
-        $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
-        $testFile = "TEST-RESULTS-$parent.xml";
-        dotnet test $file -xml $testFile;
+        if ($file.FullName.EndsWith("csproj"))
+        {
+                dotnet test $file
+        }
+        else
+        {
+                $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
+                $testFile = "TEST-RESULTS-$parent.xml";
+                dotnet test $file -xml $testFile;
+        }
         $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
       }
 
