@@ -133,23 +133,31 @@ function ExecuteDatabaseBuilds
                               
         if(Test-Path $msbuild14)
         {
-                $msbuildPath = $msbuild15
+                $build.databases| ForEach {
+                  $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
+                   Write-Host "MSBuild Database to $output" -ForegroundColor Green
+                   & $msbuild14 $_.path /p:OutputPath=$output
+                  if ($LASTEXITCODE -eq 1)
+                  {
+                      Write-Host "Error build database $_" -ForegroundColor Red
+                      exit 1
+                  }  
+                }
         }
         else
         {
-                $msbuildPath = "dotnet msbuild"
+                $build.databases| ForEach {
+                  $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
+                   Write-Host "MSBuild Database to $output" -ForegroundColor Green
+                   & dotnet msbuild $_.path /p:OutputPath=$output
+                  if ($LASTEXITCODE -eq 1)
+                  {
+                      Write-Host "Error build database $_" -ForegroundColor Red
+                      exit 1
+                  }  
+                }
         }
 
-        $build.databases| ForEach {
-          $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-           Write-Host "MSBuild Database to $output" -ForegroundColor Green
-           & $msbuildPath $_.path /p:OutputPath=$output
-          if ($LASTEXITCODE -eq 1)
-          {
-              Write-Host "Error build database $_" -ForegroundColor Red
-              exit 1
-          }  
-        }
     }
     else
     {
