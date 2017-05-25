@@ -129,16 +129,15 @@ function ExecuteDatabaseBuilds
 {
     if ($build.databases)
     {
-        $msbuild15 = "C:\Program Files (x86)\MSBuild\15.0\bin\msbuild.exe"
         $msbuild14 = "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe"
                               
-        if(Test-Path $msbuild15)
+        if(Test-Path $msbuild14)
         {
                 $msbuildPath = $msbuild15
         }
         else
         {
-                $msbuildPath = $msbuild14
+                $msbuildPath = "dotnet msbuild"
         }
 
         $build.databases| ForEach {
