@@ -147,9 +147,9 @@ function ExecuteDatabaseBuilds
         else
         {
                 $build.databases| ForEach {
-                  $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
+                  $output = "~\" + $_.name
                    Write-Host "MSBuild Database to $output" -ForegroundColor Green
-                   & dotnet msbuild $_.path /p:OutputPath=$output
+                   dotnet msbuild $_.path /p:OutputPath=$output
                   if ($LASTEXITCODE -eq 1)
                   {
                       Write-Host "Error build database $_" -ForegroundColor Red
@@ -253,8 +253,8 @@ function StandardBuild
         $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
                    
         #Bump the versions first
-        BumpVersions $build $clientStateFIPS
-        Write-Warning "Finish Bump"
+        #BumpVersions $build $clientStateFIPS
+        #Write-Warning "Finish Bump"
 
         #Restore the packages
         ExecuteRestore
