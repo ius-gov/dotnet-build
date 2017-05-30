@@ -6,8 +6,8 @@ function BumpVersions
         [Parameter(Mandatory=$true)]$build,
         [Parameter(Mandatory=$true)][string]$clientStateFIPS
     )
-
-    $configFiles = Get-ChildItem . project.json -rec
+    $configFiles = new-object FileInfo[]
+    $configFiles += Get-ChildItem . project.json -rec
     $configFiles += Get-ChildItem . *.csproj -rec
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
