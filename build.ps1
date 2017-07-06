@@ -129,14 +129,15 @@ function ExecuteDatabaseBuilds
 {
     if ($build.databases)
     {
+        $msbuild15 = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
         $msbuild14 = "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe"
-                              
-        if(Test-Path $msbuild14)
+          
+        if(Test-Path $msbuild15)
         {
                 $build.databases| ForEach {
                   $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
                    Write-Host "MSBuild Database to $output" -ForegroundColor Green
-                   & $msbuild14 $_.path /p:OutputPath=$output
+                   & $msbuild15 $_.path /p:OutputPath=$output
                   if ($LASTEXITCODE -eq 1)
                   {
                       Write-Host "Error build database $_" -ForegroundColor Red
@@ -147,9 +148,9 @@ function ExecuteDatabaseBuilds
         else
         {
                 $build.databases| ForEach {
-                  $output = "~\" + $_.name
+                  $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
                    Write-Host "MSBuild Database to $output" -ForegroundColor Green
-                   dotnet msbuild $_.path /p:OutputPath=$output
+                   & $msbuild14 $_.path /p:OutputPath=$output
                   if ($LASTEXITCODE -eq 1)
                   {
                       Write-Host "Error build database $_" -ForegroundColor Red
