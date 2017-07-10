@@ -10,6 +10,10 @@ function BumpVersions
     $configFiles += Get-ChildItem . project.json -rec
     $configFiles += Get-ChildItem . *.csproj -rec
 
+    # setting build variables for naming and hopefully tagging https://www.visualstudio.com/en-us/docs/build/define/variables
+    Write-Host "##vso[task.setvariable variable=Version.Major] $($build.version.major)"
+    Write-Host "##vso[task.setvariable variable=Version.Minor] $($build.version.minor)"
+
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
 
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
