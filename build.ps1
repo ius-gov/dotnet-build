@@ -13,8 +13,6 @@ function BumpVersions
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
 
     # setting build variables for naming and hopefully tagging https://www.visualstudio.com/en-us/docs/build/define/variables
-    Write-Host "##vso[task.setvariable variable=Version.Major] $($build.version.major)"
-    Write-Host "##vso[task.setvariable variable=Version.Minor] $($build.version.minor)"
     Write-Host "##vso[build.addbuildtag]$versionNumber"
 
 
@@ -39,6 +37,12 @@ function ExecuteRestore
     {
         Write-Host "Running dotnet restore" -ForegroundColor Green
         dotnet restore --verbosity Minimal --disable-parallel --no-cache application/
+    }
+
+    if ($LASTEXITCODE -eq 1)
+    {
+        Write-Host "Error restoring project" -ForegroundColor Red
+        exit 1
     }
 }
 
