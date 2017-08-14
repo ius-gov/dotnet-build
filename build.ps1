@@ -13,6 +13,8 @@ function BumpVersions
         [Parameter(Mandatory=$true)][string]$clientStateFIPS
     )
 
+    $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
+
     $configFiles = DiscoverConfigFiles
 
     # setting build variables for naming and hopefully tagging https://www.visualstudio.com/en-us/docs/build/define/variables
