@@ -1,10 +1,4 @@
 
-function DiscoverConfigFiles{
-    $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
-    $configFiles += Get-ChildItem . project.json -rec
-    $configFiles += Get-ChildItem . *.csproj -rec
-    return $configFiles
-}
 
 function BumpVersions
 {
@@ -12,10 +6,11 @@ function BumpVersions
         [Parameter(Mandatory=$true)]$build,
         [Parameter(Mandatory=$true)][string]$clientStateFIPS
     )
+    $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
+    $configFiles += Get-ChildItem . project.json -rec
+    $configFiles += Get-ChildItem . *.csproj -rec
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
-
-    $configFiles = DiscoverConfigFiles
 
     # setting build variables for naming and hopefully tagging https://www.visualstudio.com/en-us/docs/build/define/variables
     Write-Host "##vso[build.addbuildtag]$versionNumber"
@@ -36,20 +31,12 @@ function ExecuteRestore
     if(Test-Path 'application/.nuget/Nuget.config') 
     {
         Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
-        $configFiles = DiscoverConfigFiles
-        foreach ($file in $configFiles)
-        {
-            dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Minimal --disable-parallel --no-cache $file.FullName
-        }
+        dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Minimal --disable-parallel --no-cache application/
     }
     else
     {
         Write-Host "Running dotnet restore" -ForegroundColor Green
-        $configFiles = DiscoverConfigFiles
-        foreach ($file in $configFiles)
-        {
-            dotnet restore --verbosity Minimal --disable-parallel --no-cache $file.FullName
-        }
+        dotnet restore --verbosity Minimal --disable-parallel --no-cache application/
     }
 
     if ($LASTEXITCODE -eq 1)
@@ -75,6 +62,12 @@ function ExecuteBuilds
           }
         }
     }
+    else
+    {
+      Write-Host "No build targets trying application/*.sln" -ForegroundColor DarkYellow
+      dotnet build application/
+    }
+
 }
 
 function Get-ExtensionCount {
@@ -239,20 +232,15 @@ function ExecuteTests
         $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
         $testFile = "TEST-RESULTS-$parent.xml";
 
-
         if ($file.FullName.EndsWith("csproj"))
         {
-                Push-Location $file.DirectoryName
-                dotnet xunit -xml $testFile;
-                Pop-Location 
+                dotnet xunit $file -xml $testFile;
         }
         else
         {
                 dotnet test $file -xml $testFile;
         }
-
         $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
-
       }
 
     }
