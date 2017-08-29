@@ -2,7 +2,7 @@
 function DiscoverConfigFiles{
     $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
     $configFiles += Get-ChildItem . project.json -rec
-    $configFiles += Get-ChildItem . *.csproj -rec
+    $configFiles += Get-ChildItem . *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
     return $configFiles
 }
 
