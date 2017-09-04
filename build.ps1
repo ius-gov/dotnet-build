@@ -230,7 +230,8 @@ function ExecuteTests
     $exitCode = 0;
 
     if (Test-Path -Path 'application/test/') {
-      $testProjects = Get-ChildItem application/test/ -Recurse -include project.json 
+      $testProjects = new-object Collections.Generic.List[IO.FileSystemInfo]
+      $testProjects += Get-ChildItem application/test/ -Recurse -include project.json 
       $testProjects += Get-ChildItem application/test/ -Recurse -include *.csproj 
       
       Write-Host $testProjects -ForegroundColor DarkYellow
