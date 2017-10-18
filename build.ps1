@@ -249,7 +249,10 @@ function ExecuteTests
         }
         else
         {
-                dotnet test $file -xml $testFile;
+                # Walk into the directory so that the DependencyInjection tests will have the correct content root
+                Push-Location $file.DirectoryName
+                dotnet test -xml $testFile;
+                Pop-Location 
         }
 
         $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
