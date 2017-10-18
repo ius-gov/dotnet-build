@@ -240,20 +240,18 @@ function ExecuteTests
         $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
         $testFile = "TEST-RESULTS-$parent.xml";
 
-
+        Push-Location $file.DirectoryName
+        Write-Host "Executing Test $file"
+        pwd
         if ($file.FullName.EndsWith("csproj"))
         {
-                Push-Location $file.DirectoryName
-                dotnet xunit -xml $testFile;
-                Pop-Location 
+            dotnet xunit -xml $testFile;
         }
         else
         {
-                # Walk into the directory so that the DependencyInjection tests will have the correct content root
-                Push-Location $file.DirectoryName
-                dotnet test -xml $testFile;
-                Pop-Location 
+            dotnet test -xml $testFile;
         }
+        Pop-Location         
 
         $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
 
