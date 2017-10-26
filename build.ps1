@@ -10,10 +10,19 @@ function BumpVersions
 {
     param(
         [Parameter(Mandatory=$true)]$build,
-        [Parameter(Mandatory=$true)][string]$clientStateFIPS
+        [Parameter(Mandatory=$true)][string]$clientStateFIPS,
+        [Parameter(Mandatory=$false)][string]$prereleaseBranch
     )
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
+
+    if($prereleaseBranch.IsPresent)    
+    {
+        # The ^ is not, so replace everything that is not a letter or number
+        $nonAlphaPattern = '[^a-zA-z0-9]'
+        $cleanedPreReleaseBranch = $prereleaseBranch -replace $nonAlphaPattern, ''
+        $versionNumber = "$versionNumber-$cleanedPreReleaseBranch"
+    }
 
     $configFiles = DiscoverConfigFiles
 
@@ -272,13 +281,14 @@ function ExecuteTests
 function StandardBuild
 {
     param(
-        [Parameter(Mandatory=$true)][string]$clientStateFIPS
+        [Parameter(Mandatory=$true)][string]$clientStateFIPS,
+        [Parameter(Mandatory=$false)][string]$prereleaseBranch
     )
 
         $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
                    
         #Bump the versions first
-        BumpVersions $build $clientStateFIPS
+        BumpVersions $build $clientStateFIPS $prereleaseBranch
         Write-Warning "Finish Bump"
 
         #Restore the packages
