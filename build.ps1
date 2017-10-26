@@ -16,7 +16,7 @@ function BumpVersions
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
 
-    if($prereleaseBranch.IsPresent)    
+    if($PSBoundParameters.ContainsKey("prereleaseBranch"))    
     {
         $gitPattern = "refs/heads/"
         $cleanedPreReleaseBranch = $prereleaseBranch -replace $gitPattern
