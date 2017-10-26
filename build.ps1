@@ -288,7 +288,7 @@ function StandardBuild
 
         $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
                    
-        Write-Host "Prerelease Branch $(prereleaseBranch)"
+        Write-Host "Prerelease Branch $prereleaseBranch"
         #Bump the versions first
         BumpVersions $build $clientStateFIPS $prereleaseBranch
         Write-Warning "Finish Bump"
