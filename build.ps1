@@ -283,11 +283,12 @@ function StandardBuild
 {
     param(
         [Parameter(Mandatory=$true)][string]$clientStateFIPS,
-        [Parameter(Mandatory=$false)][string]$prereleaseBranch
+        [Parameter(Mandatory=$true)][string]$prereleaseBranch
     )
 
         $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
                    
+        Write-Host "Prerelease Branch $(prereleaseBranch)"
         #Bump the versions first
         BumpVersions $build $clientStateFIPS $prereleaseBranch
         Write-Warning "Finish Bump"
