@@ -18,6 +18,7 @@ function BumpVersions
 
     if($prereleaseBranch.IsPresent)    
     {
+        Write-Host "Prelease Branch Detected.  Setting  build version to prerelease."
         # The ^ is not, so replace everything that is not a letter or number
         $nonAlphaPattern = '[^a-zA-z0-9]'
         $cleanedPreReleaseBranch = $prereleaseBranch -replace $nonAlphaPattern, ''
