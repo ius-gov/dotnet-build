@@ -18,10 +18,11 @@ function BumpVersions
 
     if($prereleaseBranch.IsPresent)    
     {
-        Write-Host "Prelease Branch Detected.  Setting  build version to prerelease."
         # The ^ is not, so replace everything that is not a letter or number
         $nonAlphaPattern = '[^a-zA-z0-9]'
         $cleanedPreReleaseBranch = $prereleaseBranch -replace $nonAlphaPattern, ''
+        
+        Write-Host "Prelease Branch Detected.  Setting  build version to prerelease $cleanedPreReleaseBranch."
         $versionNumber = "$versionNumber-$cleanedPreReleaseBranch"
     }
 
@@ -283,12 +284,11 @@ function StandardBuild
 {
     param(
         [Parameter(Mandatory=$true)][string]$clientStateFIPS,
-        [Parameter(Mandatory=$true)][string]$prereleaseBranch
+        [Parameter(Mandatory=$false)][string]$prereleaseBranch
     )
 
         $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
                    
-        Write-Host "Prerelease Branch $prereleaseBranch"
         #Bump the versions first
         BumpVersions $build $clientStateFIPS $prereleaseBranch
         Write-Warning "Finish Bump"
