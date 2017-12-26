@@ -258,7 +258,9 @@ function ExecuteTests
         pwd
         if ($file.FullName.EndsWith("csproj"))
         {
-            dotnet xunit -xml $testFile;
+            # This causes a conflict on Json.Net that I hope resolves itself
+            # dotnet xunit -xml $testFile;
+            dotnet test;
         }
         else
         {
