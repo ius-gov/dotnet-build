@@ -65,10 +65,10 @@ function ExecuteRestore
         }
     }
 
-    if ($LASTEXITCODE -eq 1)
+    if ($LastExitCode -ne 0)
     {
         Write-Host "Error restoring project" -ForegroundColor Red
-        exit 1
+        exit $LastExitCode
     }
 }
 
@@ -78,13 +78,13 @@ function ExecuteBuilds
 
     if ($build.builds)
     {
-        $build.builds | ForEach {
+        $build.builds | ForEach-Object {
           Write-Host "Executing dotnet build for $($_.path)" -ForegroundColor Green
           dotnet build "$($_.path)\"
-          if ($LASTEXITCODE -eq 1)
+          if ($LastExitCode -ne 0)
           {
               Write-Host "Error build project $_" -ForegroundColor Red
-              exit 1
+              exit $LastExitCode
           }
         }
     }
@@ -96,7 +96,7 @@ function Get-ExtensionCount {
         $FileType = ""
     )
 
-    $files = Get-ChildItem $Root -Filter *$FileType | ? { !$_.PSIsContainer }
+    $files = Get-ChildItem $Root -Filter *$FileType | Where-Object { !$_.PSIsContainer }
     return $($files.Count)
 }
 
@@ -119,7 +119,7 @@ function ExecutePublishes
 
     if ($build.deploys)
     {
-        $build.deploys | ForEach {
+        $build.deploys | ForEach-Object {
           Write-Host "Executing dotnet build/publish for $($_.path)" -ForegroundColor Green
            $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
             if ($_.path.EndsWith("csproj") -Or (Get-HasFileWithExtension $_.path csproj ))
@@ -139,13 +139,13 @@ function ExecutePublishes
                 Write-Host "no csproj or json? trying dotnet on folder" -ForegroundColor Green
                 dotnet build "$($_.path)\" --configuration Release
                 dotnet publish "$($_.path)\" --output $output --configuration Release
-                
             }
-            if ($LASTEXITCODE -eq 1)
-          {
+
+            if ($LastExitCode -ne 0)
+            {
               Write-Host "Error build project $_" -ForegroundColor Red
-              exit 1
-          }
+              exit $LastExitCode
+            }
         }
     }
     else
@@ -164,27 +164,27 @@ function ExecuteDatabaseBuilds
           
         if(Test-Path $msbuild15)
         {
-                $build.databases| ForEach {
+                $build.databases| ForEach-Object {
                   $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
                    Write-Host "MSBuild Database to $output" -ForegroundColor Green
                    & $msbuild15 $_.path /p:OutputPath=$output
-                  if ($LASTEXITCODE -eq 1)
+                  if ($LastExitCode -ne 0)
                   {
                       Write-Host "Error build database $_" -ForegroundColor Red
-                      exit 1
+                      exit $LastExitCode
                   }  
                 }
         }
         else
         {
-                $build.databases| ForEach {
+                $build.databases| ForEach-Object {
                   $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
                    Write-Host "MSBuild Database to $output" -ForegroundColor Green
                    & $msbuild14 $_.path /p:OutputPath=$output
-                  if ($LASTEXITCODE -eq 1)
+                  if ($LastExitCode -ne 0)
                   {
                       Write-Host "Error build database $_" -ForegroundColor Red
-                      exit 1
+                      exit $LastExitCode
                   }  
                 }
         }
@@ -201,13 +201,13 @@ function PackageDatabaseBuilds
     Param($build)
     if ($build.databases)
     {
-        $build.databases | ForEach {
+        $build.databases | ForEach-Object {
         Write-Host "DacPack'ing $($_.name))" -ForegroundColor Green
 	    $artdir = $env:BUILD_ARTIFACTSTAGINGDIRECTORY	
             $sourcedir = $artDir + "\" + $_.name
             $dacpacs = Get-ChildItem -Recurse -Include *.dacpac $sourcedir
             if (($dacpacs | Measure-Object).Count -eq 0){
-                Write-Host "No dac-pack created." -ForegroundColor Red
+                Write-Host "ERROR: No dac-pack created." -ForegroundColor Red
                 exit 1
             }     
         
@@ -223,12 +223,12 @@ function PackageBuilds
     if ($build.packages)
     {
          Write-Host "Executing dotnet pack for $($_.path)" -ForegroundColor Green
-         $build.packages | ForEach {
+         $build.packages | ForEach-Object {
          dotnet pack $_.path
-          if ($LASTEXITCODE -eq 1)
+          if ($LastExitCode -ne 0)
           {
-              Write-Host "Error packaging project $_" -ForegroundColor Red
-              exit 1
+              Write-Host "ERROR packaging project $_" -ForegroundColor Red
+              exit $LastExitCode
           }  
         }
     }
@@ -255,7 +255,7 @@ function ExecuteTests
 
         Push-Location $file.DirectoryName
         Write-Host "Executing Test $file"
-        pwd
+        Get-Location
         if ($file.FullName.EndsWith("csproj"))
         {
             # This causes a conflict on Json.Net that I hope resolves itself
@@ -268,7 +268,11 @@ function ExecuteTests
         }
         Pop-Location         
 
-        $exitCode = [System.Math]::Max($lastExitCode, $exitCode);
+        if($LastExitCode -ne 0){
+            Write-Host "\tERROR: Finished $testFile with exit code $LastExitCode"
+        }
+
+        $exitCode = [System.Math]::Max($LastExitCode, $exitCode);
 
       }
 
