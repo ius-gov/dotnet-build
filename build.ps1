@@ -67,7 +67,7 @@ function ExecuteRestore
 
     if ($LastExitCode -ne 0)
     {
-        Write-Error "Error restoring project" -ForegroundColor Red
+        Write-Error "##vso[task.logissue type=error;] ERROR: restoring project"
         exit $LastExitCode
     }
 }
@@ -83,7 +83,7 @@ function ExecuteBuilds
           dotnet build "$($_.path)\"
           if ($LastExitCode -ne 0)
           {
-              Write-Error "Error build project $_" -ForegroundColor Red
+              Write-Error "##vso[task.logissue type=error;] ERROR: build project $_"
               exit $LastExitCode
           }
         }
@@ -143,7 +143,7 @@ function ExecutePublishes
 
             if ($LastExitCode -ne 0)
             {
-              Write-Error "Error build project $_" -ForegroundColor Red
+              Write-Error "##vso[task.logissue type=error;] ERROR: build project $_"
               exit $LastExitCode
             }
         }
@@ -170,7 +170,7 @@ function ExecuteDatabaseBuilds
                    & $msbuild15 $_.path /p:OutputPath=$output
                   if ($LastExitCode -ne 0)
                   {
-                      Write-Error "Error build database $_" -ForegroundColor Red
+                      Write-Error "##vso[task.logissue type=error;] ERROR: build database $_"
                       exit $LastExitCode
                   }  
                 }
@@ -183,7 +183,7 @@ function ExecuteDatabaseBuilds
                    & $msbuild14 $_.path /p:OutputPath=$output
                   if ($LastExitCode -ne 0)
                   {
-                      Write-Error "Error build database $_" -ForegroundColor Red
+                      Write-Error "##vso[task.logissue type=error;] ERROR: build database $_"
                       exit $LastExitCode
                   }  
                 }
@@ -227,7 +227,7 @@ function PackageBuilds
          dotnet pack $_.path
           if ($LastExitCode -ne 0)
           {
-              Write-Error "ERROR packaging project $_" -ForegroundColor Red
+              Write-Error "##vso[task.logissue type=error;] ERROR: packaging project $_"
               exit $LastExitCode
           }  
         }
@@ -269,7 +269,7 @@ function ExecuteTests
         Pop-Location         
 
         if($LastExitCode -ne 0){
-            Write-Error "\tERROR: Finished $testFile with exit code $LastExitCode"
+            Write-Error "##vso[task.logissue type=error;] ERROR: Finished tests in $file with exit code $LastExitCode"
         }
 
         $exitCode = [System.Math]::Max($LastExitCode, $exitCode);
@@ -279,7 +279,7 @@ function ExecuteTests
     }
     else
     {
-      Write-Warning "No test file found.  Skipping tests."
+      Write-Warning "##vso[task.logissue type=warning;] No test file found.  Skipping tests."
     }
     
     if ($exitCode -ne 0)
