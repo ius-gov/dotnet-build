@@ -66,7 +66,7 @@ function ExecuteRestore
 
     if ($LastExitCode -ne 0)
     {
-        Write-Error "##vso[task.logissue type=error;] ERROR: restoring project"
+        Write-Host "##vso[task.logissue type=error;] ERROR: restoring project"
         exit $LastExitCode
     }
 }
@@ -82,7 +82,7 @@ function ExecuteBuilds
           dotnet build "$($_.path)\"
           if ($LastExitCode -ne 0)
           {
-              Write-Error "##vso[task.logissue type=error;] ERROR: build project $_"
+              Write-Host "##vso[task.logissue type=error;] ERROR: build project $_"
               exit $LastExitCode
           }
         }
@@ -136,7 +136,7 @@ function ExecutePublishes
 
             if ($LastExitCode -ne 0)
             {
-              Write-Error "##vso[task.logissue type=error;] ERROR: build project $_"
+              Write-Host "##vso[task.logissue type=error;] ERROR: build project $_"
               exit $LastExitCode
             }
         }
@@ -201,7 +201,7 @@ function PackageBuilds
          dotnet pack $_.path
           if ($LastExitCode -ne 0)
           {
-              Write-Error "##vso[task.logissue type=error;] ERROR: packaging project $_"
+              Write-Host "##vso[task.logissue type=error;] ERROR: packaging project $_"
               exit $LastExitCode
           }  
         }
@@ -242,7 +242,7 @@ function ExecuteTests
         Pop-Location         
 
         if($LastExitCode -ne 0){
-            Write-Error "##vso[task.logissue type=error;] ERROR: Finished tests in $file with exit code $LastExitCode"
+            Write-Host "##vso[task.logissue type=error;] ERROR: Finished tests in $file with exit code $LastExitCode"
         }
 
         $exitCode = [System.Math]::Max($LastExitCode, $exitCode);
