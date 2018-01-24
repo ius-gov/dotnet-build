@@ -156,7 +156,11 @@ function ExecuteDatabaseBuilds
           
         $build.databases| ForEach-Object {
             $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-            Write-Host "MSBuild Database to $output" -ForegroundColor Green $msbuild15 $_.path /p:OutputPath=$output
+            Write-Host "MSBuild Database to $output" -ForegroundColor Green 
+
+            # build the database
+            & $msbuild15 $_.path /p:OutputPath=$output
+
             if ($LastExitCode -ne 0)
             {
                 Write-Host "##vso[task.logissue type=error;] ERROR: build database $_"
