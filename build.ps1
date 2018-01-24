@@ -1,7 +1,6 @@
 
 function DiscoverConfigFiles{
     $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
-    $configFiles += Get-ChildItem . project.json -rec
     $configFiles += Get-ChildItem . *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
     return $configFiles
 }
@@ -52,7 +51,7 @@ function ExecuteRestore
         $configFiles = DiscoverConfigFiles
         foreach ($file in $configFiles)
         {
-            dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Minimal --disable-parallel --no-cache $file.FullName
+            dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Normal $file.FullName
         }
     }
     else
@@ -61,7 +60,7 @@ function ExecuteRestore
         $configFiles = DiscoverConfigFiles
         foreach ($file in $configFiles)
         {
-            dotnet restore --verbosity Minimal --disable-parallel --no-cache $file.FullName
+            dotnet restore --verbosity Normal $file.FullName
         }
     }
 
@@ -128,15 +127,9 @@ function ExecutePublishes
                 dotnet build $_.path --configuration Release
                 dotnet publish $_.path --output $output --configuration Release 
             }
-            elseif ($_.path.EndsWith("json") -Or (Get-HasFileWithExtension $_.path json ))
-            {
-                Write-Host "trying project.json" -ForegroundColor Green
-                dotnet build "$($_.path)\project.json" --configuration Release
-                dotnet publish "$($_.path)\project.json" --output $output --configuration Release
-            }
             else 
             {
-                Write-Host "no csproj or json? trying dotnet on folder" -ForegroundColor Green
+                Write-Host "no csproj? trying dotnet on folder" -ForegroundColor Green
                 dotnet build "$($_.path)\" --configuration Release
                 dotnet publish "$($_.path)\" --output $output --configuration Release
             }
@@ -160,35 +153,16 @@ function ExecuteDatabaseBuilds
     if ($build.databases)
     {
         $msbuild15 = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
-        $msbuild14 = "C:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe"
           
-        if(Test-Path $msbuild15)
-        {
-                $build.databases| ForEach-Object {
-                  $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-                   Write-Host "MSBuild Database to $output" -ForegroundColor Green
-                   & $msbuild15 $_.path /p:OutputPath=$output
-                  if ($LastExitCode -ne 0)
-                  {
-                      Write-Host "##vso[task.logissue type=error;] ERROR: build database $_"
-                      exit $LastExitCode
-                  }  
-                }
+        $build.databases| ForEach-Object {
+            $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
+            Write-Host "MSBuild Database to $output" -ForegroundColor Green & $msbuild15 $_.path /p:OutputPath=$output
+            if ($LastExitCode -ne 0)
+            {
+                Write-Host "##vso[task.logissue type=error;] ERROR: build database $_"
+                exit $LastExitCode
+            }  
         }
-        else
-        {
-                $build.databases| ForEach-Object {
-                  $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-                   Write-Host "MSBuild Database to $output" -ForegroundColor Green
-                   & $msbuild14 $_.path /p:OutputPath=$output
-                  if ($LastExitCode -ne 0)
-                  {
-                      Write-Host "##vso[task.logissue type=error;] ERROR: build database $_"
-                      exit $LastExitCode
-                  }  
-                }
-        }
-
     }
     else
     {
@@ -244,10 +218,9 @@ function ExecuteTests
 
     if (Test-Path -Path 'application/test/') {
       $testProjects = new-object Collections.Generic.List[IO.FileSystemInfo]
-      $testProjects += Get-ChildItem application/test/ -Recurse -include project.json 
       $testProjects += Get-ChildItem application/test/ -Recurse -include *.csproj 
       
-      Write-Host $testProjects -ForegroundColor DarkYellow
+      Write-Host $testProjects
       foreach ($file in $testProjects)
       {
         $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
@@ -279,13 +252,18 @@ function ExecuteTests
     }
     else
     {
-      Write-Warning "##vso[task.logissue type=warning;] No test file found.  Skipping tests."
+      Write-Host "##vso[task.logissue type=warning;] No test file found.  Skipping tests."
     }
     
     if ($exitCode -ne 0)
     {
         exit $exitCode
     }
+}
+
+function Get-Build-Config{
+    $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
+    return $build
 }
 
 function StandardBuild
@@ -295,28 +273,28 @@ function StandardBuild
         [Parameter(Mandatory=$false)][string]$prereleaseBranch
     )
 
-        $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
+        $build = Get-Build-Config
                    
         #Bump the versions first
         BumpVersions $build $clientStateFIPS $prereleaseBranch
-        Write-Warning "Finish Bump"
+        Write-Host "Finish Bump"
 
         #Restore the packages
         ExecuteRestore
-        Write-Warning "Finish Restore"
+        Write-Host "Finish Restore"
 
         #Execute the builds
         ExecuteBuilds $build
-        Write-Warning "Finish build"
+        Write-Host "Finish build"
         ExecutePublishes $build
-        Write-Warning "Finish publishes"
+        Write-Host "Finish publishes"
         ExecuteDatabaseBuilds $build
-        Write-Warning "Finish databases"
+        Write-Host "Finish databases"
 
 
         # Test the builds
         ExecuteTests
-        Write-Warning "Finish tests"
+        Write-Host "Finish tests"
 
         #Package the builds
         PackageBuilds $build
