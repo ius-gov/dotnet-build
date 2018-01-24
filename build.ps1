@@ -10,21 +10,21 @@ function BumpVersions
     param(
         [Parameter(Mandatory=$true)]$build,
         [Parameter(Mandatory=$true)][string]$clientStateFIPS,
-        [Parameter(Mandatory=$false)][string]$prereleaseBranch
+        [Parameter(Mandatory=$false)][string]$prereleaseSuffix
     )
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
     
-    if($prereleaseBranch.length -gt 0)    
+    if($prereleaseSuffix.length -gt 0)    
     {
         $gitPattern = "refs/heads/"
-        $cleanedPreReleaseBranch = $prereleaseBranch -replace $gitPattern
+        $cleanedPreReleaseSuffix = $prereleaseSuffix -replace $gitPattern
         # The ^ is not, so replace everything that is not a letter or number
         $nonAlphaPattern = '[^a-zA-z0-9]'
-        $cleanedPreReleaseBranch = $cleanedPreReleaseBranch -replace $nonAlphaPattern, ''
+        $cleanedPreReleaseSuffix = $cleanedPreReleaseSuffix -replace $nonAlphaPattern, ''
         
-        Write-Host "Prelease Branch Detected.  Setting  build version to prerelease $cleanedPreReleaseBranch."
-        $versionNumber = "$versionNumber-$cleanedPreReleaseBranch"
+        Write-Host "Prelease Suffix Detected.  Setting  build version to prerelease $cleanedPreReleaseSuffix."
+        $versionNumber = "$versionNumber-$cleanedPreReleaseSuffix"
     }
 
     $configFiles = DiscoverConfigFiles
@@ -274,13 +274,13 @@ function StandardBuild
 {
     param(
         [Parameter(Mandatory=$true)][string]$clientStateFIPS,
-        [Parameter(Mandatory=$false)][string]$prereleaseBranch
+        [Parameter(Mandatory=$false)][string]$prereleaseSuffix
     )
 
         $build = Get-Build-Config
                    
         #Bump the versions first
-        BumpVersions $build $clientStateFIPS $prereleaseBranch
+        BumpVersions $build $clientStateFIPS $prereleaseSuffix
         Write-Host "Finish Bump"
 
         #Restore the packages
