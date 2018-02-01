@@ -1,7 +1,18 @@
 
-function DiscoverConfigFiles{
+function DiscoverSrcProjects{
+    $srcPath = 'application/src/'
     $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
-    $configFiles += Get-ChildItem . *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
+    $configFiles += Get-ChildItem $srcPath *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
+    return $configFiles
+}
+function DiscoverTestProjects{
+    $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
+    $testsPath = 'application/test/'
+
+    if (Test-Path -Path $testsPath) {
+        $configFiles += Get-ChildItem application/test/ *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
+    }
+
     return $configFiles
 }
 
@@ -27,19 +38,38 @@ function BumpVersions
         $versionNumber = "$versionNumber-$cleanedPreReleaseSuffix"
     }
 
-    $configFiles = DiscoverConfigFiles
+    $configFiles = DiscoverSrcProjects
 
     # setting build variables for naming and hopefully tagging https://www.visualstudio.com/en-us/docs/build/define/variables
     Write-Host "##vso[build.addbuildtag]$versionNumber"
+    $sentinelVersion = "0.0.0-INTERNAL"
 
 
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
+    $fail = $false
     foreach ($file in $configFiles)
     {
-        (Get-Content $file.PSPath) |
-        Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
-        Set-Content $file.PSPath
+        Write-Host "Bumping $file"
+        [xml]$configFile = (Get-Content -Path $file.PSPath)
+
+        #verify project has the correct version
+        $Xpath = '//PropertyGroup/VersionPrefix/text()'
+        $currentVersion = $configFile.SelectSingleNode($Xpath) 
+        #Write-Host ($currentVersion | Format-Table | Out-String)
+        if($currentVersion.InnerText -ne $sentinelVersion)
+        {
+            Write-Error "Incorrect version found in project $file"
+            $fail = $true
+        }
+
+        #bump the version 
+        (Get-Content -Path $file.PSPath) | Foreach-Object { $_ -replace $sentinelVersion, $versionNumber } | Set-Content $file.PSPath
     }
+    if($fail){
+       Write-Error "Finish Bump"
+       exit 1 
+    }
+    Write-Host "Finish Bump"
 }
 
 
@@ -48,7 +78,7 @@ function ExecuteRestore
     if(Test-Path 'application/.nuget/Nuget.config') 
     {
         Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
-        $configFiles = DiscoverConfigFiles
+        $configFiles = DiscoverSrcProjects
         foreach ($file in $configFiles)
         {
             dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Normal $file.FullName
@@ -57,7 +87,7 @@ function ExecuteRestore
     else
     {
         Write-Host "Running dotnet restore" -ForegroundColor Green
-        $configFiles = DiscoverConfigFiles
+        $configFiles = DiscoverSrcProjects
         foreach ($file in $configFiles)
         {
             dotnet restore --verbosity Normal $file.FullName
@@ -69,6 +99,7 @@ function ExecuteRestore
         Write-Host "##vso[task.logissue type=error;] ERROR: restoring project"
         exit $LastExitCode
     }
+    Write-Host "Finish Restore"
 }
 
 function ExecuteBuilds
@@ -87,6 +118,7 @@ function ExecuteBuilds
           }
         }
     }
+    Write-Host "Finish build"
 }
 
 function Get-ExtensionCount {
@@ -145,7 +177,7 @@ function ExecutePublishes
     {
       Write-Host "No publish targets" -ForegroundColor DarkYellow
     }
-
+    Write-Host "Finish publishes"
 }
 
 function ExecuteDatabaseBuilds
@@ -172,6 +204,7 @@ function ExecuteDatabaseBuilds
     {
         Write-Host "No Database projects" -ForegroundColor DarkYellow
     }
+    Write-Host "Finish databases"
 }
 
 function PackageDatabaseBuilds
@@ -220,10 +253,9 @@ function ExecuteTests
 {
     $exitCode = 0;
 
-    if (Test-Path -Path 'application/test/') {
-      $testProjects = new-object Collections.Generic.List[IO.FileSystemInfo]
-      $testProjects += Get-ChildItem application/test/ -Recurse -include *.csproj 
+    $testProjects = DiscoverTestProjects
       
+    if($testProjects.Count -gt 0){
       Write-Host $testProjects
       foreach ($file in $testProjects)
       {
@@ -263,6 +295,7 @@ function ExecuteTests
     {
         exit $exitCode
     }
+    Write-Host "Finish tests"
 }
 
 function Get-Build-Config{
@@ -281,24 +314,17 @@ function StandardBuild
                    
         #Bump the versions first
         BumpVersions $build $clientStateFIPS $prereleaseSuffix
-        Write-Host "Finish Bump"
 
         #Restore the packages
         ExecuteRestore
-        Write-Host "Finish Restore"
 
         #Execute the builds
         ExecuteBuilds $build
-        Write-Host "Finish build"
         ExecutePublishes $build
-        Write-Host "Finish publishes"
         ExecuteDatabaseBuilds $build
-        Write-Host "Finish databases"
-
 
         # Test the builds
         ExecuteTests
-        Write-Host "Finish tests"
 
         #Package the builds
         PackageBuilds $build
