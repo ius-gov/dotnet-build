@@ -237,7 +237,7 @@ function ExecuteTests
         {
             # This causes a conflict on Json.Net that I hope resolves itself
             # dotnet xunit -xml $testFile;
-            dotnet test;
+            dotnet test  --logger "trx;LogFileName=testResults.trx";
         }
         else
         {
