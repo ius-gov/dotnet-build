@@ -2,16 +2,29 @@
 function DiscoverConfigFiles{
     $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
     $configFiles += Get-ChildItem . *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
+
+    Write-Host "Found config files: " $configFiles.count
+
     return $configFiles
 }
 
 function BumpVersions
 {
     param(
-        [Parameter(Mandatory=$true)]$build,
+        [Parameter(Mandatory=$false)]$build,
         [Parameter(Mandatory=$true)][string]$clientStateFIPS,
         [Parameter(Mandatory=$false)][string]$prereleaseSuffix
     )
+    
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "Start Bumping Version"
+    Write-Host "============================================"
+    Write-Host ""
+
+    if(-Not $PSBoundParameters.ContainsKey('build')){
+        $build = Get-Build-Config
+    }
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
     
@@ -40,11 +53,19 @@ function BumpVersions
         Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
         Set-Content $file.PSPath
     }
+
+    Write-Host "Finish Bumping Version"
 }
 
 
 function ExecuteRestore
 {
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "Start Restore"
+    Write-Host "============================================"
+    Write-Host ""
+
     if(Test-Path 'application/.nuget/Nuget.config') 
     {
         Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
@@ -60,6 +81,7 @@ function ExecuteRestore
         $configFiles = DiscoverConfigFiles
         foreach ($file in $configFiles)
         {
+            Write-Host "Restoring " $file.FullName -ForegroundColor Green
             dotnet restore --verbosity Normal $file.FullName
         }
     }
@@ -69,11 +91,19 @@ function ExecuteRestore
         Write-Host "##vso[task.logissue type=error;] ERROR: restoring project"
         exit $LastExitCode
     }
+
+    Write-Host "Finish Restore"
 }
 
 function ExecuteBuilds
 {
     Param($build)
+
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "Executing Builds"
+    Write-Host "============================================"
+    Write-Host ""
 
     if ($build.builds)
     {
@@ -87,6 +117,7 @@ function ExecuteBuilds
           }
         }
     }
+    Write-Host "Finish build"
 }
 
 function Get-ExtensionCount {
@@ -115,6 +146,11 @@ function ExecutePublishes
 {
     Param($build)
 
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "Executing Publishes"
+    Write-Host "============================================"
+    Write-Host ""
 
     if ($build.deploys)
     {
@@ -146,10 +182,17 @@ function ExecutePublishes
       Write-Host "No publish targets" -ForegroundColor DarkYellow
     }
 
+    Write-Host "Finish publishes"
 }
 
 function ExecuteDatabaseBuilds
 {
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "Executing Database Builds"
+    Write-Host "============================================"
+    Write-Host ""
+
     if ($build.databases)
     {
         $msbuild15 = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
@@ -172,6 +215,8 @@ function ExecuteDatabaseBuilds
     {
         Write-Host "No Database projects" -ForegroundColor DarkYellow
     }
+
+    Write-Host "Finish databases"
 }
 
 function PackageDatabaseBuilds
@@ -218,6 +263,12 @@ function PackageBuilds
 
 function ExecuteTests
 {
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "Executing Tests"
+    Write-Host "============================================"
+    Write-Host ""
+
     $exitCode = 0;
 
     if (Test-Path -Path 'application/test/') {
@@ -263,11 +314,36 @@ function ExecuteTests
     {
         exit $exitCode
     }
+
+    Write-Host "Finish tests"
 }
 
 function Get-Build-Config{
     $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
     return $build
+}
+
+function ExecuteBuildAndPublish{
+    param($build)
+
+    if(-Not $PSBoundParameters.ContainsKey('build')){
+        $build = Get-Build-Config
+    }
+
+    ExecuteBuilds -build $build
+    ExecutePublishes -build $build
+    ExecuteDatabaseBuilds -build $build
+}
+
+function PackageArtifacts{
+    param($build)
+
+    if(-Not $PSBoundParameters.ContainsKey('build')){
+        $build = Get-Build-Config
+    }
+
+    PackageBuilds -build $build
+    PackageDatabaseBuilds -build $build
 }
 
 function StandardBuild
@@ -280,27 +356,17 @@ function StandardBuild
         $build = Get-Build-Config
                    
         #Bump the versions first
-        BumpVersions $build $clientStateFIPS $prereleaseSuffix
-        Write-Host "Finish Bump"
+        BumpVersions -build $build -clientStateFIPS $clientStateFIPS -prereleaseSuffix $prereleaseSuffix
 
         #Restore the packages
         ExecuteRestore
-        Write-Host "Finish Restore"
 
         #Execute the builds
-        ExecuteBuilds $build
-        Write-Host "Finish build"
-        ExecutePublishes $build
-        Write-Host "Finish publishes"
-        ExecuteDatabaseBuilds $build
-        Write-Host "Finish databases"
-
+        ExecuteBuildAndPublish -build $build
 
         # Test the builds
         ExecuteTests
-        Write-Host "Finish tests"
 
         #Package the builds
-        PackageBuilds $build
-        PackageDatabaseBuilds $build
+        PackageArtifacts -build $build
 }
