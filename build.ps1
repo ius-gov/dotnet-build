@@ -152,9 +152,6 @@ function ExecutePublishes {
             $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
             if ($_.path.EndsWith("csproj") -Or (Get-HasFileWithExtension $_.path csproj )) {
                 Write-Host "trying csproj" -ForegroundColor Green
-                (Get-Content $_.path) |
-                    Foreach-Object { Write-Host $_ }
-
                 dotnet build $_.path --configuration Release
                 dotnet publish $_.path --output $output --configuration Release 
             }
