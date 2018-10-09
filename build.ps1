@@ -1,24 +1,22 @@
 
-function DiscoverConfigFiles{
+function DiscoverConfigFiles {
     $configFiles = new-object Collections.Generic.List[IO.FileSystemInfo]
     $configFiles += Get-ChildItem . *.csproj -rec | Where-Object { !( $_ | Select-String "wcf" -quiet) }
 
     Write-Host "Found csproj files: " $configFiles.count
 
-    foreach ($file in $configFiles)
-    {
+    foreach ($file in $configFiles) {
         Write-Host "Found csproj " $file.FullName -ForegroundColor Green
     }
 
     return $configFiles
 }
 
-function BumpVersions
-{
+function BumpVersions {
     param(
-        [Parameter(Mandatory=$false)]$build,
-        [Parameter(Mandatory=$true)][string]$clientStateFIPS,
-        [Parameter(Mandatory=$false)][string]$prereleaseSuffix
+        [Parameter(Mandatory = $false)]$build,
+        [Parameter(Mandatory = $true)][string]$clientStateFIPS,
+        [Parameter(Mandatory = $false)][string]$prereleaseSuffix
     )
     
     Write-Host ""
@@ -27,14 +25,13 @@ function BumpVersions
     Write-Host "============================================"
     Write-Host ""
 
-    if(-Not $PSBoundParameters.ContainsKey('build')){
+    if (-Not $PSBoundParameters.ContainsKey('build')) {
         $build = Get-Build-Config
     }
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
     
-    if($prereleaseSuffix.length -gt 0)    
-    {
+    if ($prereleaseSuffix.length -gt 0) {
         $gitPattern = "refs/heads/"
         $cleanedPreReleaseSuffix = $prereleaseSuffix -replace $gitPattern
         # The ^ is not, so replace everything that is not a letter or number
@@ -52,48 +49,43 @@ function BumpVersions
 
 
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
-    foreach ($file in $configFiles)
-    {
+    foreach ($file in $configFiles) {
         (Get-Content $file.PSPath) |
-        Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
-        Foreach-Object { Write-Host $_ } |
-        Set-Content $file.PSPath
+            Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
+            Set-Content $file.PSPath
+
+        (Get-Content $file.PSPath) |
+            Foreach-Object { Write-Host $_ }
     }
 
     Write-Host "Finish Bumping Version"
 }
 
 
-function ExecuteRestore
-{
+function ExecuteRestore {
     Write-Host ""
     Write-Host "============================================"
     Write-Host "Start Restore"
     Write-Host "============================================"
     Write-Host ""
 
-    if(Test-Path 'application/.nuget/Nuget.config') 
-    {
+    if (Test-Path 'application/.nuget/Nuget.config') {
         Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
         $configFiles = DiscoverConfigFiles
-        foreach ($file in $configFiles)
-        {
+        foreach ($file in $configFiles) {
             dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Normal $file.FullName
         }
     }
-    else
-    {
+    else {
         Write-Host "Running dotnet restore" -ForegroundColor Green
         $configFiles = DiscoverConfigFiles
-        foreach ($file in $configFiles)
-        {
+        foreach ($file in $configFiles) {
             Write-Host "Restoring " $file.FullName -ForegroundColor Green
             dotnet restore --verbosity Normal $file.FullName
         }
     }
 
-    if ($LastExitCode -ne 0)
-    {
+    if ($LastExitCode -ne 0) {
         Write-Host "##vso[task.logissue type=error;] ERROR: restoring project"
         exit $LastExitCode
     }
@@ -101,8 +93,7 @@ function ExecuteRestore
     Write-Host "Finish Restore"
 }
 
-function ExecuteBuilds
-{
+function ExecuteBuilds {
     Param($build)
 
     Write-Host ""
@@ -111,16 +102,14 @@ function ExecuteBuilds
     Write-Host "============================================"
     Write-Host ""
 
-    if ($build.builds)
-    {
+    if ($build.builds) {
         $build.builds | ForEach-Object {
-          Write-Host "Executing dotnet build for $($_.path)" -ForegroundColor Green
-          dotnet build "$($_.path)\"
-          if ($LastExitCode -ne 0)
-          {
-              Write-Host "##vso[task.logissue type=error;] ERROR: build project $_"
-              exit $LastExitCode
-          }
+            Write-Host "Executing dotnet build for $($_.path)" -ForegroundColor Green
+            dotnet build "$($_.path)\"
+            if ($LastExitCode -ne 0) {
+                Write-Host "##vso[task.logissue type=error;] ERROR: build project $_"
+                exit $LastExitCode
+            }
         }
     }
     Write-Host "Finish build"
@@ -148,8 +137,7 @@ function Get-HasFileWithExtension {
 }
 
 
-function ExecutePublishes
-{
+function ExecutePublishes {
     Param($build)
 
     Write-Host ""
@@ -158,49 +146,45 @@ function ExecutePublishes
     Write-Host "============================================"
     Write-Host ""
 
-    if ($build.deploys)
-    {
+    if ($build.deploys) {
         $build.deploys | ForEach-Object {
-          Write-Host "Executing dotnet build/publish for $($_.path)" -ForegroundColor Green
-           $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
-            if ($_.path.EndsWith("csproj") -Or (Get-HasFileWithExtension $_.path csproj ))
-            {
+            Write-Host "Executing dotnet build/publish for $($_.path)" -ForegroundColor Green
+            $output = $env:BUILD_ARTIFACTSTAGINGDIRECTORY + "\" + $_.name
+            if ($_.path.EndsWith("csproj") -Or (Get-HasFileWithExtension $_.path csproj )) {
                 Write-Host "trying csproj" -ForegroundColor Green
+                (Get-Content $_.path) |
+                    Foreach-Object { Write-Host $_ }
+
                 dotnet build $_.path --configuration Release
                 dotnet publish $_.path --output $output --configuration Release 
             }
-            else 
-            {
+            else {
                 Write-Host "no csproj? trying dotnet on folder" -ForegroundColor Green
                 dotnet build "$($_.path)\" --configuration Release
                 dotnet publish "$($_.path)\" --output $output --configuration Release
             }
 
-            if ($LastExitCode -ne 0)
-            {
-              Write-Host "##vso[task.logissue type=error;] ERROR: build project $_"
-              exit $LastExitCode
+            if ($LastExitCode -ne 0) {
+                Write-Host "##vso[task.logissue type=error;] ERROR: build project $_"
+                exit $LastExitCode
             }
         }
     }
-    else
-    {
-      Write-Host "No publish targets" -ForegroundColor DarkYellow
+    else {
+        Write-Host "No publish targets" -ForegroundColor DarkYellow
     }
 
     Write-Host "Finish publishes"
 }
 
-function ExecuteDatabaseBuilds
-{
+function ExecuteDatabaseBuilds {
     Write-Host ""
     Write-Host "============================================"
     Write-Host "Executing Database Builds"
     Write-Host "============================================"
     Write-Host ""
 
-    if ($build.databases)
-    {
+    if ($build.databases) {
         $msbuild15 = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
           
         $build.databases| ForEach-Object {
@@ -210,32 +194,28 @@ function ExecuteDatabaseBuilds
             # build the database
             & $msbuild15 $_.path /p:OutputPath=$output
 
-            if ($LastExitCode -ne 0)
-            {
+            if ($LastExitCode -ne 0) {
                 Write-Host "##vso[task.logissue type=error;] ERROR: build database $_"
                 exit $LastExitCode
             }  
         }
     }
-    else
-    {
+    else {
         Write-Host "No Database projects" -ForegroundColor DarkYellow
     }
 
     Write-Host "Finish databases"
 }
 
-function PackageDatabaseBuilds
-{
+function PackageDatabaseBuilds {
     Param($build)
-    if ($build.databases)
-    {
+    if ($build.databases) {
         $build.databases | ForEach-Object {
-        Write-Host "DacPack'ing $($_.name))" -ForegroundColor Green
-	    $artdir = $env:BUILD_ARTIFACTSTAGINGDIRECTORY	
+            Write-Host "DacPack'ing $($_.name))" -ForegroundColor Green
+            $artdir = $env:BUILD_ARTIFACTSTAGINGDIRECTORY	
             $sourcedir = $artDir + "\" + $_.name
             $dacpacs = Get-ChildItem -Recurse -Include *.dacpac $sourcedir
-            if (($dacpacs | Measure-Object).Count -eq 0){
+            if (($dacpacs | Measure-Object).Count -eq 0) {
                 Write-Host "ERROR: No dac-pack created." -ForegroundColor Red
                 exit 1
             }     
@@ -245,30 +225,25 @@ function PackageDatabaseBuilds
     }
 }
 
-function PackageBuilds
-{
+function PackageBuilds {
     Param($build)
 
-    if ($build.packages)
-    {
-         Write-Host "Executing dotnet pack for $($_.path)" -ForegroundColor Green
-         $build.packages | ForEach-Object {
-         dotnet pack $_.path
-          if ($LastExitCode -ne 0)
-          {
-              Write-Host "##vso[task.logissue type=error;] ERROR: packaging project $_"
-              exit $LastExitCode
-          }  
+    if ($build.packages) {
+        Write-Host "Executing dotnet pack for $($_.path)" -ForegroundColor Green
+        $build.packages | ForEach-Object {
+            dotnet pack $_.path
+            if ($LastExitCode -ne 0) {
+                Write-Host "##vso[task.logissue type=error;] ERROR: packaging project $_"
+                exit $LastExitCode
+            }  
         }
     }
-    else
-    {
+    else {
         Write-Host "No package targets" -ForegroundColor DarkYellow
     }
 }
 
-function ExecuteTests
-{
+function ExecuteTests {
     Write-Host ""
     Write-Host "============================================"
     Write-Host "Executing Tests"
@@ -278,61 +253,56 @@ function ExecuteTests
     $exitCode = 0;
 
     if (Test-Path -Path 'application/test/') {
-      $testProjects = new-object Collections.Generic.List[IO.FileSystemInfo]
-      $testProjects += Get-ChildItem application/test/ -Recurse -include *.csproj 
+        $testProjects = new-object Collections.Generic.List[IO.FileSystemInfo]
+        $testProjects += Get-ChildItem application/test/ -Recurse -include *.csproj 
       
-      Write-Host $testProjects
-      foreach ($file in $testProjects)
-      {
-        $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
-        $testFile = "TEST-RESULTS-$parent.xml";
+        Write-Host $testProjects
+        foreach ($file in $testProjects) {
+            $parent = Split-Path (Split-Path -Path $file.Fullname -Parent) -Leaf;
+            $testFile = "TEST-RESULTS-$parent.xml";
 
-        Push-Location $file.DirectoryName
-        Write-Host "Executing Test $file"
-        Get-Location
-        if ($file.FullName.EndsWith("csproj"))
-        {
-            # This causes a conflict on Json.Net that I hope resolves itself
-            # dotnet xunit -xml $testFile;
-            dotnet test;
+            Push-Location $file.DirectoryName
+            Write-Host "Executing Test $file"
+            Get-Location
+            if ($file.FullName.EndsWith("csproj")) {
+                # This causes a conflict on Json.Net that I hope resolves itself
+                # dotnet xunit -xml $testFile;
+                dotnet test;
+            }
+            else {
+                dotnet test -xml $testFile;
+            }
+            Pop-Location         
+
+            if ($LastExitCode -ne 0) {
+                Write-Host "##vso[task.logissue type=error;] ERROR: Finished tests in $file with exit code $LastExitCode"
+            }
+
+            $exitCode = [System.Math]::Max($LastExitCode, $exitCode);
+
         }
-        else
-        {
-            dotnet test -xml $testFile;
-        }
-        Pop-Location         
-
-        if($LastExitCode -ne 0){
-            Write-Host "##vso[task.logissue type=error;] ERROR: Finished tests in $file with exit code $LastExitCode"
-        }
-
-        $exitCode = [System.Math]::Max($LastExitCode, $exitCode);
-
-      }
 
     }
-    else
-    {
-      Write-Host "##vso[task.logissue type=warning;] No test file found.  Skipping tests."
+    else {
+        Write-Host "##vso[task.logissue type=warning;] No test file found.  Skipping tests."
     }
     
-    if ($exitCode -ne 0)
-    {
+    if ($exitCode -ne 0) {
         exit $exitCode
     }
 
     Write-Host "Finish tests"
 }
 
-function Get-Build-Config{
+function Get-Build-Config {
     $build = (Get-Content .\build.json | Out-String | ConvertFrom-Json)
     return $build
 }
 
-function ExecuteBuildAndPublish{
+function ExecuteBuildAndPublish {
     param($build)
 
-    if(-Not $PSBoundParameters.ContainsKey('build')){
+    if (-Not $PSBoundParameters.ContainsKey('build')) {
         $build = Get-Build-Config
     }
 
@@ -341,10 +311,10 @@ function ExecuteBuildAndPublish{
     ExecuteDatabaseBuilds -build $build
 }
 
-function PackageArtifacts{
+function PackageArtifacts {
     param($build)
 
-    if(-Not $PSBoundParameters.ContainsKey('build')){
+    if (-Not $PSBoundParameters.ContainsKey('build')) {
         $build = Get-Build-Config
     }
 
@@ -352,27 +322,26 @@ function PackageArtifacts{
     PackageDatabaseBuilds -build $build
 }
 
-function StandardBuild
-{
+function StandardBuild {
     param(
-        [Parameter(Mandatory=$true)][string]$clientStateFIPS,
-        [Parameter(Mandatory=$false)][string]$prereleaseSuffix
+        [Parameter(Mandatory = $true)][string]$clientStateFIPS,
+        [Parameter(Mandatory = $false)][string]$prereleaseSuffix
     )
 
-        $build = Get-Build-Config
+    $build = Get-Build-Config
                    
-        #Bump the versions first
-        BumpVersions -build $build -clientStateFIPS $clientStateFIPS -prereleaseSuffix $prereleaseSuffix
+    #Bump the versions first
+    BumpVersions -build $build -clientStateFIPS $clientStateFIPS -prereleaseSuffix $prereleaseSuffix
 
-        #Restore the packages
-        ExecuteRestore
+    #Restore the packages
+    ExecuteRestore
 
-        #Execute the builds
-        ExecuteBuildAndPublish -build $build
+    #Execute the builds
+    ExecuteBuildAndPublish -build $build
 
-        # Test the builds
-        ExecuteTests
+    # Test the builds
+    ExecuteTests
 
-        #Package the builds
-        PackageArtifacts -build $build
+    #Package the builds
+    PackageArtifacts -build $build
 }
