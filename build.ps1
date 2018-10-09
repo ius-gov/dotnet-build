@@ -28,9 +28,10 @@ function BumpVersions {
     if (-Not $PSBoundParameters.ContainsKey('build')) {
         $build = Get-Build-Config
     }
+    $buildId = [int]$env:BUILD_BUILDID
 
-    $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$env:BUILD_BUILDID"
-    if ($env:BUILD_BUILDID -is [int] -And $env:BUILD_BUILDID -gt 65535){
+    $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$buildId"
+    if ($env:BUILD_BUILDID -gt 65535){
         $buildId = $env:BUILD_BUILDID - 65535
         $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor + 1).$buildId"
     }
