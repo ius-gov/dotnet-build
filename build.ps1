@@ -56,7 +56,6 @@ function BumpVersions
     {
         (Get-Content $file.PSPath) |
         Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
-        Foreach-Object { Write-Host $_ } |
         Set-Content $file.PSPath
     }
 
