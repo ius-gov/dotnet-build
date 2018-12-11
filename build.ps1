@@ -28,12 +28,16 @@ function BumpVersions {
     if (-Not $PSBoundParameters.ContainsKey('build')) {
         $build = Get-Build-Config
     }
+
+    Write-Host "Initial Build Version: $env:BUILD_BUILDID"
+
     $buildId = [int]$env:BUILD_BUILDID
 
     $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor).$buildId"
     if ($buildId -gt 65535){
-        $buildId = $env:BUILD_BUILDID - 65535
+        $buildId = $buildId - 65535
         $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor + 1).$buildId"
+        Write-Host "overflow from 16-bit int detected, subtracting 65535 in nasty hack"
     }
     Write-Host "ClientStateFIPS: $clientStateFIPS"
     Write-Host "Major Version: $($build.version.major)"
