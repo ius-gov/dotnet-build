@@ -35,6 +35,10 @@ function BumpVersions {
         $buildId = $env:BUILD_BUILDID - 65535
         $versionNumber = "$($clientStateFIPS).$($build.version.major).$($build.version.minor + 1).$buildId"
     }
+    Write-Host "ClientStateFIPS: $clientStateFIPS"
+    Write-Host "Major Version: $($build.version.major)"
+    Write-Host "Minor Version: $($build.version.minor)"
+    Write-Host "Build Version: $buildId"
 
     
     if ($prereleaseSuffix.length -gt 0) {
@@ -55,6 +59,7 @@ function BumpVersions {
 
 
     Write-Host "Updating version number to $versionNumber" -ForegroundColor Green
+    Write-Host ""
     foreach ($file in $configFiles) {
         (Get-Content $file.PSPath) |
             Foreach-Object { $_ -replace "0.0.0-INTERNAL", $versionNumber } |
@@ -62,9 +67,11 @@ function BumpVersions {
 
         (Get-Content $file.PSPath) |
             Foreach-Object { Write-Host $_ }
+        Write-Host ""
     }
 
     Write-Host "Finish Bumping Version"
+    Write-Host ""
 }
 
 
@@ -232,8 +239,8 @@ function PackageBuilds {
     Param($build)
 
     if ($build.packages) {
-        Write-Host "Executing dotnet pack for $($_.path)" -ForegroundColor Green
         $build.packages | ForEach-Object {
+            Write-Host "Executing dotnet pack for $($_.path)" -ForegroundColor Green
             dotnet pack $_.path
             if ($LastExitCode -ne 0) {
                 Write-Host "##vso[task.logissue type=error;] ERROR: packaging project $_"
