@@ -86,16 +86,20 @@ function ExecuteRestore {
     Write-Host "============================================"
     Write-Host ""
 
+    $configFiles = DiscoverConfigFiles
+    if ($configFiles.length == 0) {
+        Write-Host "No configfiles found, exiting"
+        return
+    } 
+
     if (Test-Path 'application/.nuget/Nuget.config') {
         Write-Host "Running dotnet restore on application/nuget/Nuget.config" -ForegroundColor Green
-        $configFiles = DiscoverConfigFiles
         foreach ($file in $configFiles) {
             dotnet restore --configfile application/.nuget/Nuget.config  --verbosity Normal $file.FullName
         }
     }
     else {
         Write-Host "Running dotnet restore" -ForegroundColor Green
-        $configFiles = DiscoverConfigFiles
         foreach ($file in $configFiles) {
             Write-Host "Restoring " $file.FullName -ForegroundColor Green
             dotnet restore --verbosity Normal $file.FullName
