@@ -87,7 +87,7 @@ function ExecuteRestore {
     Write-Host ""
 
     $configFiles = DiscoverConfigFiles
-    if ($configFiles.length == 0) {
+    if ($configFiles.length -eq 0) {
         Write-Host "No configfiles found, exiting"
         return
     } 
